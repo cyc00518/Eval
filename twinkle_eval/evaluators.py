@@ -2,6 +2,7 @@ import json
 import os
 import random
 import time
+from math import comb
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tqdm import tqdm
@@ -82,6 +83,9 @@ class Evaluator:
     ):
         dataset = Dataset(file_path)
         shuffle_enabled = self.shuffle_options
+
+        if self.samples_per_question > 1:
+            print("⚠️ samples_per_question > 1：會為同一題產生多個樣本，usage 計數目前共用單次呼叫，呈現時可能重複。")
 
         total_correct_samples = 0
         total_samples = 0
@@ -175,7 +179,6 @@ class Evaluator:
                 if n == 0 or k > n:
                     pass_at_k_values.append(0)
                     continue
-                from math import comb
 
                 if c == 0:
                     pass_at_k_values.append(0)
