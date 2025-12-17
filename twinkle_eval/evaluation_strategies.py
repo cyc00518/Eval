@@ -191,28 +191,24 @@ class MathExtractionStrategy(EvaluationStrategy):
         return None
 
     def _extract_braced_content(self, text: str, prefix: str) -> Optional[str]:
-        """從最後一次 prefix 出現後，找出成對大括號內的內容。"""
+        """從最後一次 prefix 出現後，擷取對應到 prefix 所開啟之大括號 {...} 內容（支援巢狀）。"""
         start = text.rfind(prefix)
         if start == -1:
             return None
 
-        content = text[start + len(prefix) :]
-        depth = 0
-        end_pos = -1
+        # 假設 prefix 以 "{" 結尾（例如 r"\boxed{"），因此此處已位於外層括號內
+        content = text[start + len(prefix):]
+
+        depth = 1  # 已在外層 { ... } 內
         for idx, ch in enumerate(content):
             if ch == "{":
                 depth += 1
             elif ch == "}":
                 depth -= 1
+                if depth == 0:
+                    return content[:idx].strip()
 
-            if depth == -1:
-                end_pos = idx
-                break
-
-        if end_pos == -1:
-            return None
-
-        return content[:end_pos].strip()
+        return None
 
     def is_correct(self, predicted: Optional[str], gold: Optional[str]) -> bool:
         """使用 MathRuler 的 grade_answer 進行等價判斷。"""
