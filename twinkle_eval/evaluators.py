@@ -182,6 +182,8 @@ class Evaluator:
 
                 if c == 0:
                     pass_at_k_values.append(0)
+                elif c >= k:
+                    pass_at_k_values.append(1)
                 else:
                     pass_at_k_values.append(1 - comb(n - c, k) / comb(n, k))
 
