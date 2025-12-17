@@ -11,6 +11,7 @@ from twinkle_eval.exceptions import ConfigurationError
 
 from .config import load_config
 from .dataset import find_all_evaluation_files
+from .evaluation_strategies import EvaluationStrategyFactory
 from .evaluators import Evaluator
 from .logger import log_error, log_info
 from .results_exporters import ResultsExporterFactory
@@ -181,7 +182,108 @@ class TwinkleEvalRunner:
             dataset_paths = [dataset_paths]
         return dataset_paths
 
-    def _evaluate_dataset(self, dataset_path: str, evaluator: Evaluator) -> Dict[str, Any]:
+    def _resolve_eval_method(self, dataset_path: str) -> str:
+        """根據資料集路徑決定要用的評測方法（可由 config 覆寫）"""
+        if self.config is None:
+            raise ConfigurationError("配置未載入")
+
+        eval_cfg = self.config["evaluation"]
+        method_map = eval_cfg.get("dataset_method_map", {})
+        overrides = eval_cfg.get("dataset_overrides", {})
+
+        dataset_abs = os.path.normpath(os.path.abspath(dataset_path))
+
+        # 1) dataset_overrides 優先
+        for prefix, settings in overrides.items():
+            prefix_abs = os.path.normpath(os.path.abspath(prefix))
+            try:
+                if dataset_abs.startswith(prefix_abs) and isinstance(settings, dict):
+                    method = settings.get("evaluation_method")
+                    if method:
+                        return method
+            except Exception:
+                continue
+
+        # 2) dataset_method_map 次之
+        for prefix, method in method_map.items():
+            prefix_abs = os.path.normpath(os.path.abspath(prefix))
+            try:
+                if dataset_abs.startswith(prefix_abs):
+                    return method
+            except Exception:
+                continue
+
+        # 3) 預設
+        return eval_cfg["evaluation_method"]
+
+    def _resolve_system_prompt_enabled(self, dataset_path: str) -> bool:
+        """決定是否對此資料集使用 system prompt（僅 box 模式有意義）。"""
+        if self.config is None:
+            raise ConfigurationError("配置未載入")
+
+        eval_cfg = self.config["evaluation"]
+        overrides = eval_cfg.get("dataset_overrides", {})
+        dataset_abs = os.path.normpath(os.path.abspath(dataset_path))
+
+        for prefix, settings in overrides.items():
+            prefix_abs = os.path.normpath(os.path.abspath(prefix))
+            try:
+                if dataset_abs.startswith(prefix_abs) and isinstance(settings, dict):
+                    if "system_prompt_enabled" in settings:
+                        return bool(settings["system_prompt_enabled"])
+            except Exception:
+                continue
+
+        return bool(eval_cfg.get("system_prompt_enabled", True))
+
+    def _resolve_dataset_settings(self, dataset_path: str) -> Dict[str, Any]:
+        """整合資料集專屬設定（模式、prompt、抽樣、pass@k、重複次數、shuffle）。"""
+        if self.config is None:
+            raise ConfigurationError("配置未載入")
+
+        eval_cfg = self.config["evaluation"]
+        overrides = eval_cfg.get("dataset_overrides", {})
+        dataset_abs = os.path.normpath(os.path.abspath(dataset_path))
+
+        settings = {
+            "evaluation_method": self._resolve_eval_method(dataset_path),
+            "system_prompt_enabled": self._resolve_system_prompt_enabled(dataset_path),
+            "samples_per_question": 1,
+            "pass_k": 1,
+            "repeat_runs": eval_cfg.get("repeat_runs", 1),
+            "shuffle_options": eval_cfg.get("shuffle_options", False),
+            "math_mode": eval_cfg.get("math_mode", "pattern"),
+            "model_overrides": {},
+        }
+
+        for prefix, cfg in overrides.items():
+            prefix_abs = os.path.normpath(os.path.abspath(prefix))
+            try:
+                if dataset_abs.startswith(prefix_abs) and isinstance(cfg, dict):
+                    if "evaluation_method" in cfg:
+                        settings["evaluation_method"] = cfg["evaluation_method"]
+                    if "system_prompt_enabled" in cfg:
+                        settings["system_prompt_enabled"] = cfg["system_prompt_enabled"]
+                    if "samples_per_question" in cfg:
+                        settings["samples_per_question"] = cfg["samples_per_question"]
+                    if "pass_k" in cfg:
+                        settings["pass_k"] = cfg["pass_k"]
+                    if "repeat_runs" in cfg:
+                        settings["repeat_runs"] = cfg["repeat_runs"]
+                    if "shuffle_options" in cfg:
+                        settings["shuffle_options"] = cfg["shuffle_options"]
+                    # 模型參數覆寫
+                    for mk in ("temperature", "top_p", "max_tokens", "frequency_penalty", "presence_penalty"):
+                        if mk in cfg:
+                            settings["model_overrides"][mk] = cfg[mk]
+            except Exception:
+                continue
+
+        return settings
+
+    def _evaluate_dataset(
+        self, dataset_path: str, evaluator: Evaluator, repeat_runs: int, dataset_label: str
+    ) -> Dict[str, Any]:
         """評測單一資料集
 
         對指定資料集中的所有檔案進行評測，支援多次執行並統計結果
@@ -199,7 +301,6 @@ class TwinkleEvalRunner:
         log_info(f"開始評測資料集: {dataset_path}")
 
         all_files = find_all_evaluation_files(dataset_path)  # 尋找所有評測檔案
-        repeat_runs = self.config["evaluation"].get("repeat_runs", 1)  # 重複執行次數
         prompt_map = self.config["evaluation"].get("datasets_prompt_map", {})  # 資料集語言對應表
         dataset_lang = prompt_map.get(dataset_path, "zh")  # 當前資料集的語言，預設為中文
 
@@ -207,16 +308,18 @@ class TwinkleEvalRunner:
 
         for idx, file_path in enumerate(all_files):
             file_accuracies = []  # 當前檔案的準確率結果
+            file_pass_ats = []  # 當前檔案的 pass@k 結果
             file_results = []  # 當前檔案的詳細結果
 
             # 對當前檔案進行多次評測
             for run in range(repeat_runs):
                 try:
-                    file_path_result, accuracy, result_path = evaluator.evaluate_file(
-                        file_path, f"{self.start_time}_run{run}", dataset_lang
+                    file_path_result, metrics, result_path = evaluator.evaluate_file(
+                        file_path, f"{self.start_time}_run{run}", dataset_lang, dataset_label
                     )
-                    file_accuracies.append(accuracy)
-                    file_results.append((file_path_result, accuracy, result_path))
+                    file_accuracies.append(metrics.get("accuracy", 0))
+                    file_pass_ats.append(metrics.get("pass_at_k", 0))
+                    file_results.append((file_path_result, metrics, result_path))
                 except Exception as e:
                     log_error(f"評測檔案 {file_path} 失敗: {e}")
                     continue
@@ -225,15 +328,19 @@ class TwinkleEvalRunner:
             if file_accuracies:
                 mean_accuracy = np.mean(file_accuracies)  # 平均準確率
                 std_accuracy = np.std(file_accuracies) if len(file_accuracies) > 1 else 0  # 標準差
+                mean_pass_at_k = np.mean(file_pass_ats) if file_pass_ats else 0
 
                 results.append(
                     {
                         "file": file_path,
                         "accuracy_mean": mean_accuracy,
                         "accuracy_std": std_accuracy,
+                        "pass_at_k_mean": mean_pass_at_k,
                         "individual_runs": {
                             "accuracies": file_accuracies,
+                            "pass_at_k": file_pass_ats,
                             "results": [r[2] for r in file_results],
+                            "metrics": [r[1] for r in file_results],
                         },
                     }
                 )
@@ -251,11 +358,13 @@ class TwinkleEvalRunner:
         dataset_avg_std = (
             np.mean([r["accuracy_std"] for r in results]) if results else 0
         )  # 資料集平均標準差
+        dataset_avg_pass_at_k = np.mean([r["pass_at_k_mean"] for r in results]) if results else 0
 
         return {
             "results": results,
             "average_accuracy": dataset_avg_accuracy,
             "average_std": dataset_avg_std,
+            "average_pass_at_k": dataset_avg_pass_at_k,
         }
 
     def run_evaluation(self, export_formats: Optional[List[str]] = None) -> str:
@@ -283,17 +392,54 @@ class TwinkleEvalRunner:
 
         # 建立評測器
         llm_instance = self.config["llm_instance"]
-        evaluation_strategy_instance = self.config["evaluation_strategy_instance"]
-        evaluator = Evaluator(llm_instance, evaluation_strategy_instance, self.config)
+        default_strategy = self.config["evaluation_strategy_instance"]
+        strategy_config = self.config["evaluation"].get("strategy_config", {})
+        strategy_cache = {(self.config["evaluation"]["evaluation_method"], None): default_strategy}
 
         # 逐一評測每個資料集
         for dataset_path in dataset_paths:
             try:
-                dataset_result = self._evaluate_dataset(dataset_path, evaluator)
+                ds_settings = self._resolve_dataset_settings(dataset_path)
+                eval_method = ds_settings["evaluation_method"]
+                math_mode = ds_settings.get("math_mode") if eval_method == "math" else None
+                cache_key = (eval_method, math_mode)
+                if cache_key not in strategy_cache:
+                    if eval_method == "math":
+                        cfg = dict(strategy_config)
+                        cfg["mode"] = math_mode or "pattern"
+                        strategy_cache[cache_key] = EvaluationStrategyFactory.create_strategy(
+                            eval_method, cfg
+                        )
+                    else:
+                        strategy_cache[cache_key] = EvaluationStrategyFactory.create_strategy(
+                            eval_method, strategy_config
+                        )
+                evaluator = Evaluator(
+                    llm_instance,
+                    strategy_cache[cache_key],
+                    self.config,
+                    eval_method,
+                    ds_settings["system_prompt_enabled"],
+                    ds_settings["samples_per_question"],
+                    ds_settings["pass_k"],
+                    ds_settings["shuffle_options"],
+                    ds_settings.get("model_overrides", {}),
+                )
+                dataset_label = os.path.basename(os.path.normpath(dataset_path))
+                dataset_result = self._evaluate_dataset(
+                    dataset_path,
+                    evaluator,
+                    repeat_runs=ds_settings["repeat_runs"],
+                    dataset_label=dataset_label,
+                )
+                dataset_result["evaluation_method"] = eval_method
                 dataset_results[dataset_path] = dataset_result
 
+                # 每完成一個資料集就匯出一次 snapshot
+                self._export_results_snapshot(dataset_results, export_formats)
+
                 message = (
-                    f"資料集 {dataset_path} 評測完成，"
+                    f"資料集 {dataset_path} 評測完成（模式: {eval_method}），"
                     f"平均正確率: {dataset_result['average_accuracy']:.2%} "
                     f"(±{dataset_result['average_std']:.2%})"
                 )
@@ -316,16 +462,30 @@ class TwinkleEvalRunner:
         }
 
         # 以多種格式輸出結果
-        base_output_path = os.path.join(self.results_dir, f"results_{self.start_time}")
-        exported_files = ResultsExporterFactory.export_results(
-            final_results, base_output_path, export_formats, self.config
-        )
+        exported_files = self._export_results_snapshot(dataset_results, export_formats, include_config=True)
 
         # Google 服務整合
         self._handle_google_services(final_results, export_formats)
 
         log_info(f"評測完成，結果已匯出至: {', '.join(exported_files)}")
         return exported_files[0] if exported_files else ""
+
+    def _export_results_snapshot(
+        self, dataset_results: Dict[str, Any], export_formats: List[str], include_config: bool = True
+    ) -> List[str]:
+        """在進度中匯出目前已完成資料集的結果快照。"""
+        current_duration = (
+            (datetime.now() - self.start_datetime).total_seconds() if self.start_datetime else 0
+        )
+        payload = {
+            "timestamp": self.start_time,
+            "dataset_results": dataset_results,
+            "duration_seconds": current_duration,
+        }
+        if include_config:
+            payload["config"] = self._prepare_config_for_saving()
+        base_output_path = os.path.join(self.results_dir, f"results_{self.start_time}")
+        return ResultsExporterFactory.export_results(payload, base_output_path, export_formats, self.config)
 
     def _handle_google_services(self, results: Dict[str, Any], export_formats: List[str]):
         """處理 Google 服務整合

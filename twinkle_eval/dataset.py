@@ -88,7 +88,6 @@ class Dataset:
     def __len__(self):
         return len(self.data)
 
-
 def find_all_evaluation_files(dataset_root: str) -> list:
     """在指定目錄中遞迴搜尋所有支援的評測檔案
 

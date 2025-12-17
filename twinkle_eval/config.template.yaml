@@ -1,25 +1,27 @@
 llm_api:
-  base_url: "http://your-openai-compatible-server/v1" # API 伺服器網址
-  api_key: "your-api-key"                             # API 金鑰
+  base_url: "https://litellm-ekkks8gsocw.dgx-coolify.apmic.ai/v1" # API 伺服器網址
+  api_key: "sk-HaBt6TX5161TNRoyiZPoQg"                             # API 金鑰
   disable_ssl_verify: false                           # 是否停用 SSL 驗證
   api_rate_limit: 2                                   # 每秒請求限制（-1 為不限制）
   max_retries: 5                                      # API 呼叫失敗時的重試次數
   timeout: 600                                        # API 呼叫的超時時間 (秒)
 
 model:
-  name: "model-name"        # 模型名稱
+  name: "ACE-Gemma-4B"        # 模型名稱
   temperature: 0.0          # 溫度參數
   top_p: 0.9                # Top-p 機率閾值
-  max_tokens: 4096          # 最大輸出 token 數
+  max_tokens: 32768         # 最大輸出 token 數
   frequency_penalty: 0.0    # 頻率懲罰
   presence_penalty: 0.0     # 存在懲罰
   extra_body:
 
 evaluation:
   dataset_paths:            # 資料集路徑
-    - "datasets/dataset1/"
-    - "datasets/dataset2/"
-  evaluation_method: "box"  # 評測方法（支援 "pattern" 或 "box"）
+    - "datasets/AIME_2024/"
+    - "datasets/AIME_2025/"
+    - "datasets/MATH-500/"
+    - "datasets/gpqa_diamond/"
+  evaluation_method: "pattern"  # 預設評測方法（支援 "pattern"、"box"、"math"）
   system_prompt:             # 系統提示詞，僅於 box 評測方法中使用
     zh: |
       使用者將提供一個題目，並附上選項 A、B、C、D
@@ -36,8 +38,39 @@ evaluation:
       Strictly follow the output format and avoid any extra content or incorrect formatting.
   datasets_prompt_map:
     "datasets/mmlu/": "en"  # 指定資料集使用英文提示詞
+  dataset_method_map:       # 依資料集覆寫評測模式
+    "datasets/AIME_2024/": "math"
+    "datasets/AIME_2025/": "math"
+    "datasets/MATH-500/": "math"
+  dataset_overrides:        # 可針對資料集客製化設定
+    "datasets/AIME_2024/":
+      evaluation_method: "math"
+      math_mode: "box"         # math 模式下可選 box 或 pattern
+      system_prompt_enabled: false
+      samples_per_question: 64   # Number of responses per query
+      pass_k: 1
+      # 可選：覆寫模型生成參數
+      # temperature: 0.7
+      # top_p: 0.9
+      # max_tokens: 1024
+      # frequency_penalty: 0.0
+      # presence_penalty: 0.0
+    "datasets/AIME_2025/":
+      evaluation_method: "math"
+      math_mode: "box"
+      system_prompt_enabled: false
+      samples_per_question: 64
+      pass_k: 1
+    "datasets/MATH-500/":
+      evaluation_method: "math"
+      math_mode: "pattern"
+      system_prompt_enabled: false
+      samples_per_question: 4
+      pass_k: 1
   repeat_runs: 5           # 單一 datasets 重複執行次數
   shuffle_options: true    # 是否對選項進行隨機排序
+  math_mode: "pattern"     # math 預設模式 (pattern/box)
+  system_prompt_enabled: true  # 是否在 box 模式帶入 system_prompt，可由 dataset_overrides 覆寫
 
 environment:
   gpu_info:

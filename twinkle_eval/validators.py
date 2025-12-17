@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+from .evaluation_strategies import EvaluationStrategyFactory
 from .exceptions import ConfigurationError, ValidationError
 
 
@@ -158,6 +159,16 @@ class ConfigValidator:
             if not isinstance(eval_config["shuffle_options"], bool):
                 raise ValidationError("Evaluation 'shuffle_options' must be a boolean")
 
+        if "samples_per_question" in eval_config:
+            spq = eval_config["samples_per_question"]
+            if not isinstance(spq, int) or spq <= 0:
+                raise ValidationError("Evaluation 'samples_per_question' must be a positive integer")
+
+        if "pass_k" in eval_config:
+            pk = eval_config["pass_k"]
+            if not isinstance(pk, int) or pk <= 0:
+                raise ValidationError("Evaluation 'pass_k' must be a positive integer")
+
         if "datasets_prompt_map" in eval_config:
             prompt_map = eval_config["datasets_prompt_map"]
             if not isinstance(prompt_map, dict):
@@ -166,6 +177,97 @@ class ConfigValidator:
             for key, value in prompt_map.items():
                 if not isinstance(key, str) or not isinstance(value, str):
                     raise ValidationError("All entries in 'datasets_prompt_map' must be strings")
+
+        if "dataset_method_map" in eval_config:
+            method_map = eval_config["dataset_method_map"]
+            if not isinstance(method_map, dict):
+                raise ValidationError("Evaluation 'dataset_method_map' must be a dictionary")
+            available_methods = set(EvaluationStrategyFactory.get_available_types())
+            for key, value in method_map.items():
+                if not isinstance(key, str):
+                    raise ValidationError("Keys in 'dataset_method_map' must be strings")
+                if not isinstance(value, str):
+                    raise ValidationError("Values in 'dataset_method_map' must be strings")
+                if value not in available_methods:
+                    raise ValidationError(
+                        f"dataset_method_map value '{value}' is not supported; "
+                        f"available: {', '.join(sorted(available_methods))}"
+                    )
+
+        if "dataset_overrides" in eval_config:
+            overrides = eval_config["dataset_overrides"]
+            if not isinstance(overrides, dict):
+                raise ValidationError("Evaluation 'dataset_overrides' must be a dictionary")
+            available_methods = set(EvaluationStrategyFactory.get_available_types())
+            for key, value in overrides.items():
+                if not isinstance(key, str):
+                    raise ValidationError("Keys in 'dataset_overrides' must be strings")
+                if not isinstance(value, dict):
+                    raise ValidationError("Values in 'dataset_overrides' must be dictionaries")
+                if "evaluation_method" in value:
+                    method = value["evaluation_method"]
+                    if not isinstance(method, str):
+                        raise ValidationError(
+                            "dataset_overrides.evaluation_method must be a string when provided"
+                        )
+                    if method not in available_methods:
+                        raise ValidationError(
+                            f"dataset_overrides evaluation_method '{method}' is not supported; "
+                            f"available: {', '.join(sorted(available_methods))}"
+                        )
+                if "system_prompt_enabled" in value and not isinstance(
+                    value["system_prompt_enabled"], bool
+                ):
+                    raise ValidationError(
+                        "dataset_overrides.system_prompt_enabled must be a boolean when provided"
+                    )
+                if "samples_per_question" in value:
+                    spq = value["samples_per_question"]
+                    if not isinstance(spq, int) or spq <= 0:
+                        raise ValidationError(
+                            "dataset_overrides.samples_per_question must be a positive integer"
+                        )
+                if "pass_k" in value:
+                    pk = value["pass_k"]
+                    if not isinstance(pk, int) or pk <= 0:
+                        raise ValidationError(
+                            "dataset_overrides.pass_k must be a positive integer"
+                        )
+                if "repeat_runs" in value:
+                    rr = value["repeat_runs"]
+                    if not isinstance(rr, int) or rr <= 0:
+                        raise ValidationError(
+                            "dataset_overrides.repeat_runs must be a positive integer"
+                        )
+                if "shuffle_options" in value and not isinstance(value["shuffle_options"], bool):
+                    raise ValidationError(
+                        "dataset_overrides.shuffle_options must be a boolean when provided"
+                    )
+                if "math_mode" in value:
+                    mmode = value["math_mode"]
+                    if mmode not in ("box", "pattern"):
+                        raise ValidationError(
+                            "dataset_overrides.math_mode must be either 'box' or 'pattern'"
+                        )
+                for mk in ("temperature", "top_p", "frequency_penalty", "presence_penalty"):
+                    if mk in value and not isinstance(value[mk], (int, float)):
+                        raise ValidationError(
+                            f"dataset_overrides.{mk} must be a number when provided"
+                        )
+                if "max_tokens" in value:
+                    mt = value["max_tokens"]
+                    if not isinstance(mt, int) or mt <= 0:
+                        raise ValidationError("dataset_overrides.max_tokens must be a positive integer")
+
+        if "system_prompt_enabled" in eval_config and not isinstance(
+            eval_config["system_prompt_enabled"], bool
+        ):
+            raise ValidationError("Evaluation 'system_prompt_enabled' must be a boolean")
+
+        if "math_mode" in eval_config:
+            math_mode = eval_config["math_mode"]
+            if math_mode not in ("box", "pattern"):
+                raise ValidationError("Evaluation 'math_mode' must be either 'box' or 'pattern'")
 
         return True
 

@@ -54,7 +54,7 @@
 - **自動化評測多個檔案**：可批次處理並統一生成評測結果。
 - **可自訂評測參數與生成控制**：可設定溫度、top_p 等生成參數。
 - **選項隨機排列功能**：避免模型因選項順序產生偏好。
-- **Pattern 或 Box 雙模式評測**：支援文字匹配或框選評分邏輯。
+- **Pattern / Box 策略**：支援文字匹配或框選抽取（Box 可配合 `\\boxed{}` 回傳短答案）。
 - **多次測試平均分析**：設定測試回合數以觀察模型表現穩定性。
 - **計算平均正確率與穩定性指標**：量化模型答題準確度與波動程度。
 - **紀錄 LLM 推論與統計結果**：用於後續分析模型在各類題型的表現。
@@ -97,6 +97,8 @@
 - [MMLU](https://github.com/hendrycks/test)
 - [tw-legal-benchmark-v1](https://huggingface.co/datasets/lianghsun/tw-legal-benchmark-v1)
 - [Formosa-bench](https://huggingface.co/datasets/lianghsun/Formosa-bench)
+- [AIME 2024/2025](https://huggingface.co/datasets/minyichen/AIME_2024) / (https://huggingface.co/datasets/minyichen/AIME_2025)
+- [MATH-500](https://huggingface.co/datasets/minyichen/MATH-500)
 
 ### API 效能設定
 
@@ -221,7 +223,7 @@ print(f"評測完成！結果已儲存至：{results}")
 - **`models.py`**: LLM 抽象層，支援多種 LLM API（目前支援 OpenAI 相容格式）
 - **`datasets.py`**: 資料集載入和處理，支援 JSON、JSONL、CSV、TSV、Parquet 格式
 - **`evaluators.py`**: 評測核心邏輯，包含並行處理和進度追蹤
-- **`evaluation_strategies.py`**: 答案提取策略，包含 Pattern、Box、自定義正則三種策略
+- **`evaluation_strategies.py`**: 答案提取策略，包含 Pattern、Box、自定義正則
 - **`results_exporters.py`**: 結果輸出模組，支援 JSON、CSV、HTML 等格式
 - **`validators.py`**: 驗證工具，確保配置和資料集的正確性
 - **`exceptions.py`**: 自定義異常類別，提供精確的錯誤處理
@@ -265,9 +267,11 @@ model:
 ```yaml
 evaluation:
   dataset_paths: # 資料集路徑
-    - "datasets/dataset1/"
-    - "datasets/dataset2/"
-  evaluation_method: "box" # 評測方法（支援 "pattern" 或 "box"）
+    - "datasets/minyichen/AIME_2024/"
+    - "datasets/minyichen/AIME_2025/"
+    - "datasets/minyichen/MATH-500/"
+    - "datasets/gpqa_diamond/"
+  evaluation_method: "pattern" # 預設評測方法（支援 "pattern"、"box"、"math"）
   system_prompt:        # 系統提示詞，僅於 box 評測方法中使用
     zh: |
       使用者將提供一個題目，並附上選項 A、B、C、D
@@ -284,8 +288,33 @@ evaluation:
       Strictly follow the output format and avoid any extra content or incorrect formatting.
   datasets_prompt_map:
     "datasets/mmlu/": "en" # 指定資料集使用英文提示詞
+  dataset_method_map:
+    "datasets/minyichen/AIME_2024/": "math"
+    "datasets/minyichen/AIME_2025/": "math"
+    "datasets/minyichen/MATH-500/": "math"
+  dataset_overrides:
+    "datasets/minyichen/AIME_2024/":
+      evaluation_method: "math"
+      math_mode: "box"      # math 模式：box 或 pattern
+      system_prompt_enabled: false
+      samples_per_question: 64  # Number of responses per query
+      pass_k: 1
+    "datasets/minyichen/AIME_2025/":
+      evaluation_method: "math"
+      math_mode: "box"
+      system_prompt_enabled: false
+      samples_per_question: 64
+      pass_k: 1
+    "datasets/minyichen/MATH-500/":
+      evaluation_method: "math"
+      math_mode: "pattern"
+      system_prompt_enabled: false
+      samples_per_question: 4
+      pass_k: 1
   repeat_runs: 5 # 單一 datasets 重複執行次數
   shuffle_options: true # 是否對選項進行隨機排序
+  math_mode: "pattern"    # math 模式預設值
+  system_prompt_enabled: true # box 模式時是否帶入 system prompt
 ```
 
 ### 日誌設定

@@ -100,7 +100,11 @@ class ConfigurationManager:
             "repeat_runs": 1,  # 重複執行次數
             "shuffle_options": False,  # 是否隨機打亂選項順序
             "datasets_prompt_map": {},  # 資料集語言對應表
+            "dataset_method_map": {},  # 資料集評測方法覆寫
+            "dataset_overrides": {},  # 資料集客製化設定（方法、system prompt 等）
             "strategy_config": {},  # 評測策略配置
+            "math_mode": "pattern",  # math 策略的預設模式（pattern 或 box）
+            "system_prompt_enabled": True,  # 是否使用 system prompt（box 模式）
         }
         for key, value in eval_defaults.items():
             if key not in self.config["evaluation"]:

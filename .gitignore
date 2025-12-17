@@ -131,3 +131,6 @@ results/
 
 # real config file
 config.yaml
+
+/.venv
+/.venv311
