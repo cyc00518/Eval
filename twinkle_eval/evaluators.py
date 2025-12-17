@@ -146,9 +146,8 @@ class Evaluator:
                     question_stats.setdefault(question_id, {"correct": 0, "total": 0})
                     if is_correct:
                         question_stats[question_id]["correct"] += 1
-                    question_stats[question_id]["total"] += 1
-                    if is_correct:
                         total_correct_samples += 1
+                    question_stats[question_id]["total"] += 1
                     total_samples += 1
 
                     detailed_results.append(
