@@ -36,8 +36,20 @@ evaluation:
       Strictly follow the output format and avoid any extra content or incorrect formatting.
   datasets_prompt_map:
     "datasets/mmlu/": "en"  # 指定資料集使用英文提示詞
-  repeat_runs: 5           # 單一 datasets 重複執行次數
-  shuffle_options: true    # 是否對選項進行隨機排序
+  dataset_overrides:        # 針對特定資料集覆寫設定
+    "datasets/AIME_2024/":
+      evaluation_method: "math"  # 針對特定資料集改用 math 策略
+      system_prompt_enabled: false
+      samples_per_question: 8  # 預設每題生成樣本數
+      pass_k: 1               # 預設 pass@k
+      temperature: 0.6        # 可選：覆寫模型生成參數
+      top_p: 0.95
+      max_tokens: 16384
+      # frequency_penalty: 0.0
+      # presence_penalty: 0.0
+  repeat_runs: 5 # 單一 datasets 重複執行次數
+  shuffle_options: true # 是否對選項進行隨機排序
+  system_prompt_enabled: true # box/math 模式下是否帶入 system promp
 
 environment:
   gpu_info:

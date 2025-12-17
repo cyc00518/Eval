@@ -97,6 +97,9 @@
 - [MMLU](https://github.com/hendrycks/test)
 - [tw-legal-benchmark-v1](https://huggingface.co/datasets/lianghsun/tw-legal-benchmark-v1)
 - [Formosa-bench](https://huggingface.co/datasets/lianghsun/Formosa-bench)
+- [AIME2024](https://huggingface.co/datasets/minyichen/AIME2024)
+- [AIME2025](https://huggingface.co/datasets/minyichen/AIME2025)
+- [MATH500](https://huggingface.co/datasets/minyichen/MATH500)
 
 ### API 效能設定
 
@@ -284,9 +287,25 @@ evaluation:
       Strictly follow the output format and avoid any extra content or incorrect formatting.
   datasets_prompt_map:
     "datasets/mmlu/": "en" # 指定資料集使用英文提示詞
+  dataset_overrides:        # 可依資料集路徑前綴覆寫評測方法
+    "datasets/AIME_2024/":
+      evaluation_method: "math"  # 針對特定資料集改用 math 策略
+      system_prompt_enabled: false
+      samples_per_question: 8  # 預設每題生成樣本數
+      pass_k: 1               # 預設 pass@k
+      temperature: 0.6        # 可選：覆寫模型生成參數
+      top_p: 0.95
+      max_tokens: 16384
+      # frequency_penalty: 0.0
+      # presence_penalty: 0.0
   repeat_runs: 5 # 單一 datasets 重複執行次數
   shuffle_options: true # 是否對選項進行隨機排序
+  system_prompt_enabled: true # box/math 模式下是否帶入 system prompt
 ```
+
+`dataset_overrides` 可依資料集路徑前綴覆寫評測方法、是否啟用 system prompt、每題樣本數（影響 pass@k 計算）、pass_k、repeat_runs、shuffle_options，以及模型生成參數（temperature、top_p、max_tokens、frequency_penalty、presence_penalty）。未覆寫的欄位會沿用 `evaluation` 的預設值。
+
+結果檔會同時輸出 `pass_at_k` 數值與 `pass_metric` 標籤，標籤是 `pass@{pass_k}`。舉例：`samples_per_question: 64` 且 `pass_k: 1` 會輸出 `pass@1`。未設定時預設 `samples_per_question: 1`、`pass_k: 1`，即 `pass@1`。
 
 ### 日誌設定
 
@@ -297,7 +316,7 @@ logging:
 
 ## 輸出結果
 
-本專案輸出兩份結果，分別為 `results_{timestamp}.json` 與 `eval_results_{timestamp}.json`。
+本專案輸出兩份結果，分別為 `results_{timestamp}.json` 與 `eval_results_{timestamp}.jsonl`（會包含 pass_k 與 pass_metric，例如 `pass@{pass_k}`）。
 
 ### `results_{timestamp}.json`
 
@@ -311,18 +330,38 @@ logging:
 ```json
 {
   "timestamp": "20250314_1158", // 評測執行的時間戳記
-  "results": [
-    // 各個測試檔案的評測結果
-    {
-      "file": "datasets/test/basic_medical_science_train.csv", // 測試檔案路徑
-      "accuracy": 0.4 // 模型在該檔案上的正確率
-    },
-    {
-      "file": "datasets/test/culinary_skills_dev.csv",
-      "accuracy": 0.4
+  "dataset_results": {
+    "datasets/test/": {
+      "average_accuracy": 0.4, // 整個資料集平均正確率
+      "average_std": 0.0,
+      "average_pass_at_k": 0.4, // pass@k 平均（k 由 pass_k 決定）
+      "pass_metric": "pass@1",  // pass@{pass_k}
+      "pass_k": 1,
+      "results": [
+        {
+          "file": "datasets/test/basic_medical_science_train.csv", // 測試檔案路徑
+          "accuracy_mean": 0.4, // 單檔平均正確率
+          "accuracy_std": 0.0,
+          "pass_at_k_mean": 0.4,
+          "pass_metric": "pass@1",
+          "pass_k": 1,
+          "individual_runs": {
+            "accuracies": [0.4],
+            "pass_at_k": [0.4],
+            "results": ["results/eval_results_test_20250314_1158.jsonl"],
+            "metrics": [
+              {
+                "accuracy": 0.4,
+                "pass_at_k": 0.4,
+                "pass_metric": "pass@1",
+                "pass_k": 1
+              }
+            ]
+          }
+        }
+      ]
     }
-  ],
-  "average_accuracy": 0.4, // 所有資料集的平均正確率
+  },
   "config": {
     "llm_api": {
       "base_url": "http://localhost:8002/v1/", // 呼叫模型的 API 端點

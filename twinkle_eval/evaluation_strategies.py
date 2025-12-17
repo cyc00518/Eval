@@ -35,6 +35,14 @@ class EvaluationStrategy(ABC):
         """Validate the LLM output format."""
         return isinstance(llm_output, str) and llm_output.strip() != ""
 
+    def normalize_answer(self, answer: str) -> str:
+        """Normalize 提取答案，預設轉成大寫去除空白。"""
+        return str(answer).strip().upper()
+
+    def is_correct(self, predicted: Optional[str], gold: Optional[str]) -> bool:
+        """預設直接比較 normalize 後結果。"""
+        return predicted == gold
+
 
 class PatternMatchingStrategy(EvaluationStrategy):
     """模式匹配策略 - 使用正則表達式在 LLM 輸出中尋找答案
@@ -99,7 +107,7 @@ class PatternMatchingStrategy(EvaluationStrategy):
         for pattern in self.patterns:
             match = re.search(pattern, llm_output)
             if match:
-                return match.group(1).strip()
+                return self.normalize_answer(match.group(1))
         return None
 
     def add_pattern(self, pattern: str):
@@ -128,7 +136,7 @@ class BoxExtractionStrategy(EvaluationStrategy):
         for pattern in self.patterns:
             match = re.search(pattern, llm_output)
             if match:
-                return match.group(1).strip()
+                return self.normalize_answer(match.group(1))
         return None
 
     def add_pattern(self, pattern: str):
@@ -211,6 +219,10 @@ class MathExtractionStrategy(EvaluationStrategy):
         if predicted is None or gold is None:
             return False
         return grade_answer(predicted, gold)
+
+    def normalize_answer(self, answer: str) -> str:
+        """數學答案維持原格式僅做基礎修剪，避免破壞 LaTeX。"""
+        return str(answer).strip()
 
 
 class EvaluationStrategyFactory:

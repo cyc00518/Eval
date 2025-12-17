@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -29,11 +30,28 @@ class RateLimiter:
 
 
 class Evaluator:
-    def __init__(self, llm: LLM, evaluation_strategy: EvaluationStrategy, config: dict):
+    def __init__(
+        self,
+        llm: LLM,
+        evaluation_strategy: EvaluationStrategy,
+        config: dict,
+        eval_method: str,
+        system_prompt_enabled: bool = True,
+        samples_per_question: int = 1,
+        pass_k: int = 1,
+        shuffle_options: bool = False,
+        model_overrides: dict | None = None,
+    ):
         self.llm = llm
         self.evaluation_strategy = evaluation_strategy
+        self.eval_method = eval_method
+        self.system_prompt_enabled = system_prompt_enabled
         self.config = config
         self.rate_limiter = RateLimiter(calls_per_second=self.config["llm_api"]["api_rate_limit"])
+        self.samples_per_question = int(samples_per_question)
+        self.pass_k = int(pass_k)
+        self.shuffle_options = bool(shuffle_options)
+        self.model_overrides = model_overrides or {}
 
     def shuffle_question_options(self, question_data):
         options = []
@@ -60,13 +78,16 @@ class Evaluator:
 
         return new_data
 
-    def evaluate_file(self, file_path: str, timestamp: str, prompt_lang: str = "zh"):
+    def evaluate_file(
+        self, file_path: str, timestamp: str, prompt_lang: str = "zh", dataset_label: str = ""
+    ):
         dataset = Dataset(file_path)
-        shuffle_enabled = self.config["evaluation"].get("shuffle_options", False)
+        shuffle_enabled = self.shuffle_options
 
-        total_correct = 0
-        total_questions = 0
+        total_correct_samples = 0
+        total_samples = 0
         detailed_results = []
+        question_stats = {}  # question_id -> {"correct": int, "total": int}
 
         with ThreadPoolExecutor() as executor:
             future_tasks = []
@@ -76,75 +97,114 @@ class Evaluator:
                 if shuffle_enabled:
                     q = self.shuffle_question_options(q)
 
-                question_text = (
-                    q["question"]
-                    + "\n"
-                    + "\n".join(
-                        [f"{k}: {v}" for k, v in q.items() if k not in ["question", "answer"]]
-                    )
-                )
+                option_lines = [f"{k}: {q[k]}" for k in ["A", "B", "C", "D"] if k in q]
+                question_text = q["question"] if not option_lines else q["question"] + "\n" + "\n".join(option_lines)
 
                 try:
-                    correct_answer = q["answer"].strip().upper()
+                    correct_answer = self.evaluation_strategy.normalize_answer(q["answer"])
                 except (KeyError, AttributeError) as e:
                     log_error(f"\n Error processing question {idx + 1}: {str(e)}")
                     continue
 
                 self.rate_limiter.wait()
-                future = executor.submit(self.llm.call, question_text, prompt_lang)
+                future = executor.submit(
+                    self.llm.call,
+                    question_text,
+                    prompt_lang,
+                    self.eval_method,
+                    self.system_prompt_enabled,
+                    self.samples_per_question,
+                    self.model_overrides,
+                )
                 future_tasks.append(future)
-                future_to_data[future] = (question_text, correct_answer, idx)
+                future_to_data[future] = (question_text, correct_answer, idx, self.samples_per_question)
 
             for future in tqdm(
                 as_completed(future_tasks), total=len(future_tasks), desc="處理回應中"
             ):
                 llm_chat_completion = future.result()
 
-                message = llm_chat_completion.choices[0].message
                 usage = llm_chat_completion.usage
-                content = message.content
-                reasoning_content = getattr(message, "reasoning_content", None)
+                question_text, correct_answer, question_id, expected_samples = future_to_data[future]
 
-                question_text, correct_answer, question_id = future_to_data[future]
-                predicted_answer = self.evaluation_strategy.extract_answer(content)
+                for sample_id, choice in enumerate(llm_chat_completion.choices[:expected_samples]):
+                    message = choice.message
+                    content = message.content
+                    reasoning_content = getattr(message, "reasoning_content", None)
 
-                if hasattr(self.evaluation_strategy, "is_correct"):
-                    is_correct = self.evaluation_strategy.is_correct(predicted_answer, correct_answer)
-                else:
+                    predicted_answer_raw = self.evaluation_strategy.extract_answer(content)
+                    predicted_answer = (
+                        None
+                        if predicted_answer_raw is None
+                        else self.evaluation_strategy.normalize_answer(predicted_answer_raw)
+                    )
+
                     is_correct = (
                         False
                         if predicted_answer is None
-                        else predicted_answer.strip().upper() == correct_answer
+                        else self.evaluation_strategy.is_correct(predicted_answer, correct_answer)
                     )
-                if is_correct:
-                    total_correct += 1
-                total_questions += 1
+                    question_stats.setdefault(question_id, {"correct": 0, "total": 0})
+                    if is_correct:
+                        question_stats[question_id]["correct"] += 1
+                    question_stats[question_id]["total"] += 1
+                    if is_correct:
+                        total_correct_samples += 1
+                    total_samples += 1
 
-                detailed_results.append(
-                    {
-                        "question_id": question_id,
-                        "question": question_text,
-                        "correct_answer": correct_answer,
-                        "llm_output": content,
-                        "llm_reasoning_output": reasoning_content,
-                        "predicted_answer": predicted_answer,
-                        "is_correct": is_correct,
-                        "usage_completion_tokens": usage.completion_tokens,
-                        "usage_prompt_tokens": usage.prompt_tokens,
-                        "usage_total_tokens": usage.total_tokens,
-                    }
-                )
+                    detailed_results.append(
+                        {
+                            "question_id": question_id,
+                            "sample_id": sample_id,
+                            "question": question_text,
+                            "correct_answer": correct_answer,
+                            "predicted_answer": predicted_answer,
+                            "is_correct": is_correct,
+                            "llm_output": content,
+                            "llm_reasoning_output": reasoning_content,
+                            "usage_completion_tokens": usage.completion_tokens,
+                            "usage_prompt_tokens": usage.prompt_tokens,
+                            "usage_total_tokens": usage.total_tokens,
+                        }
+                    )
 
-            accuracy = total_correct / total_questions if total_questions else 0
+            accuracy = total_correct_samples / total_samples if total_samples else 0
+            pass_at_k_values = []
+            for stats in question_stats.values():
+                c = stats["correct"]
+                n = stats["total"]
+                k = self.pass_k
+                if n == 0 or k > n:
+                    pass_at_k_values.append(0)
+                    continue
+                from math import comb
+
+                if c == 0:
+                    pass_at_k_values.append(0)
+                else:
+                    pass_at_k_values.append(1 - comb(n - c, k) / comb(n, k))
+
+            pass_at_k = sum(pass_at_k_values) / len(pass_at_k_values) if pass_at_k_values else 0
+            pass_metric_label = f"pass@{self.pass_k}"
 
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)
-        results_path = os.path.join(results_dir, f"eval_results_{timestamp}.jsonl")
 
-        # 將每個 detail 項目寫入 JSONL 檔案
-        with open(results_path, "w", encoding="utf-8") as f:
-            for detail in detailed_results:
-                f.write(json.dumps(detail, ensure_ascii=False) + "\n")
+        safe_dataset = dataset_label or os.path.basename(os.path.dirname(file_path))
+        results_path = os.path.join(results_dir, f"eval_results_{safe_dataset}_{timestamp}.jsonl")
 
-        print(f"✅ 評測完成，結果已儲存至 {results_path}")
-        return file_path, accuracy, results_path
+        record = {
+            "timestamp": timestamp,
+            "dataset_label": safe_dataset,
+            "file": os.path.relpath(file_path),
+            "accuracy": accuracy,
+            "pass_at_k": pass_at_k,
+            "pass_metric": pass_metric_label,
+            "details": detailed_results,
+        }
+
+        with open(results_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+        print(f"✅ 評測完成，結果已追加至 {results_path}")
+        return file_path, {"accuracy": accuracy, "pass_at_k": pass_at_k, "pass_metric": pass_metric_label, "pass_k": self.pass_k}, results_path
