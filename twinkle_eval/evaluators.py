@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
