@@ -54,7 +54,7 @@
 - **自動化評測多個檔案**：可批次處理並統一生成評測結果。
 - **可自訂評測參數與生成控制**：可設定溫度、top_p 等生成參數。
 - **選項隨機排列功能**：避免模型因選項順序產生偏好。
-- **Pattern 或 Box 雙模式評測**：支援文字匹配或框選評分邏輯。
+- **Pattern / Box / Math 評測**：支援文字匹配、框選抽取；Math 模式固定以 box 抽取並搭配 MathRuler 等價判斷。
 - **多次測試平均分析**：設定測試回合數以觀察模型表現穩定性。
 - **計算平均正確率與穩定性指標**：量化模型答題準確度與波動程度。
 - **紀錄 LLM 推論與統計結果**：用於後續分析模型在各類題型的表現。
@@ -221,7 +221,7 @@ print(f"評測完成！結果已儲存至：{results}")
 - **`models.py`**: LLM 抽象層，支援多種 LLM API（目前支援 OpenAI 相容格式）
 - **`datasets.py`**: 資料集載入和處理，支援 JSON、JSONL、CSV、TSV、Parquet 格式
 - **`evaluators.py`**: 評測核心邏輯，包含並行處理和進度追蹤
-- **`evaluation_strategies.py`**: 答案提取策略，包含 Pattern、Box、自定義正則三種策略
+- **`evaluation_strategies.py`**: 答案提取策略，包含 Pattern、Box、Math、自定義正則
 - **`results_exporters.py`**: 結果輸出模組，支援 JSON、CSV、HTML 等格式
 - **`validators.py`**: 驗證工具，確保配置和資料集的正確性
 - **`exceptions.py`**: 自定義異常類別，提供精確的錯誤處理
@@ -267,7 +267,7 @@ evaluation:
   dataset_paths: # 資料集路徑
     - "datasets/dataset1/"
     - "datasets/dataset2/"
-  evaluation_method: "box" # 評測方法（支援 "pattern" 或 "box"）
+  evaluation_method: "box" # 評測方法（支援 "pattern"、"box"、"math"）
   system_prompt:        # 系統提示詞，僅於 box 評測方法中使用
     zh: |
       使用者將提供一個題目，並附上選項 A、B、C、D

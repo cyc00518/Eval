@@ -10,6 +10,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 
+from mathruler.grader import grade_answer
 
 class EvaluationStrategy(ABC):
     """評測策略抽象基本類別
@@ -160,6 +161,58 @@ class CustomRegexStrategy(EvaluationStrategy):
         return None
 
 
+class MathExtractionStrategy(EvaluationStrategy):
+    """數學評測策略：固定以 box 標記抽取答案，並用 MathRuler 進行比對。"""
+
+    def get_strategy_name(self) -> str:
+        return "math"
+
+    def extract_answer(self, llm_output: str) -> Optional[str]:
+        """只嘗試從 \\boxed{...} 或 \\box{...} 取出最後一個答案。"""
+        if not self.validate_output(llm_output):
+            return None
+
+        boxed = self._extract_braced_content(llm_output, r"\boxed{")
+        if boxed is not None:
+            return boxed
+
+        box = self._extract_braced_content(llm_output, r"\box{")
+        if box is not None:
+            return box
+
+        return None
+
+    def _extract_braced_content(self, text: str, prefix: str) -> Optional[str]:
+        """從最後一次 prefix 出現後，找出成對大括號內的內容。"""
+        start = text.rfind(prefix)
+        if start == -1:
+            return None
+
+        content = text[start + len(prefix) :]
+        depth = 0
+        end_pos = -1
+        for idx, ch in enumerate(content):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+
+            if depth == -1:
+                end_pos = idx
+                break
+
+        if end_pos == -1:
+            return None
+
+        return content[:end_pos].strip()
+
+    def is_correct(self, predicted: Optional[str], gold: Optional[str]) -> bool:
+        """使用 MathRuler 的 grade_answer 進行等價判斷。"""
+        if predicted is None or gold is None:
+            return False
+        return grade_answer(predicted, gold)
+
+
 class EvaluationStrategyFactory:
     """Factory class for creating evaluation strategy instances."""
 
@@ -167,6 +220,7 @@ class EvaluationStrategyFactory:
         "pattern": PatternMatchingStrategy,
         "box": BoxExtractionStrategy,
         "custom_regex": CustomRegexStrategy,
+        "math": MathExtractionStrategy,
     }
 
     @classmethod

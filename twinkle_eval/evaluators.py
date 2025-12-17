@@ -108,11 +108,14 @@ class Evaluator:
                 question_text, correct_answer, question_id = future_to_data[future]
                 predicted_answer = self.evaluation_strategy.extract_answer(content)
 
-                is_correct = (
-                    False
-                    if predicted_answer is None
-                    else predicted_answer.strip().upper() == correct_answer
-                )
+                if hasattr(self.evaluation_strategy, "is_correct"):
+                    is_correct = self.evaluation_strategy.is_correct(predicted_answer, correct_answer)
+                else:
+                    is_correct = (
+                        False
+                        if predicted_answer is None
+                        else predicted_answer.strip().upper() == correct_answer
+                    )
                 if is_correct:
                     total_correct += 1
                 total_questions += 1
