@@ -118,7 +118,7 @@ class OpenAIModel(LLM):
             "messages": messages,
         }
 
-        if num_samples and num_samples > 1:
+        if num_samples > 1:
             payload["n"] = int(num_samples)
 
         # Add optional parameters if they exist
