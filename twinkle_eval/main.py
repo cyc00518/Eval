@@ -194,21 +194,30 @@ class TwinkleEvalRunner:
         dataset_abs = os.path.normpath(os.path.abspath(dataset_path))
 
         for prefix, settings in overrides.items():
-            prefix_abs = os.path.normpath(os.path.abspath(prefix))
             try:
+                prefix_abs = os.path.normpath(os.path.abspath(prefix))
                 if dataset_abs.startswith(prefix_abs) and isinstance(settings, dict):
                     method = settings.get("evaluation_method")
                     if method:
                         return method
-            except Exception:
+            except (OSError, TypeError, ValueError) as e:
+                settings_info = (
+                    f"keys={list(settings.keys())}" if isinstance(settings, dict) else f"type={type(settings).__name__}"
+                )
+                log_error(
+                    f"套用 dataset_overrides 評測方法失敗 (dataset={dataset_path}, override_prefix={prefix}, {settings_info}): {e}"
+                )
                 continue
 
         for prefix, method in method_map.items():
-            prefix_abs = os.path.normpath(os.path.abspath(prefix))
             try:
+                prefix_abs = os.path.normpath(os.path.abspath(prefix))
                 if dataset_abs.startswith(prefix_abs):
                     return method
-            except Exception:
+            except (OSError, TypeError, ValueError) as e:
+                log_error(
+                    f"套用 dataset_method_map 失敗 (dataset={dataset_path}, method_map_prefix={prefix}): {e}"
+                )
                 continue
 
         return eval_cfg["evaluation_method"]
@@ -223,12 +232,18 @@ class TwinkleEvalRunner:
         dataset_abs = os.path.normpath(os.path.abspath(dataset_path))
 
         for prefix, settings in overrides.items():
-            prefix_abs = os.path.normpath(os.path.abspath(prefix))
             try:
+                prefix_abs = os.path.normpath(os.path.abspath(prefix))
                 if dataset_abs.startswith(prefix_abs) and isinstance(settings, dict):
                     if "system_prompt_enabled" in settings:
                         return bool(settings["system_prompt_enabled"])
-            except Exception:
+            except (OSError, TypeError, ValueError) as e:
+                settings_info = (
+                    f"keys={list(settings.keys())}" if isinstance(settings, dict) else f"type={type(settings).__name__}"
+                )
+                log_error(
+                    f"套用 system_prompt_enabled 覆寫失敗 (dataset={dataset_path}, override_prefix={prefix}, {settings_info}): {e}"
+                )
                 continue
 
         return bool(eval_cfg.get("system_prompt_enabled", True))
@@ -253,8 +268,8 @@ class TwinkleEvalRunner:
         }
 
         for prefix, cfg in overrides.items():
-            prefix_abs = os.path.normpath(os.path.abspath(prefix))
             try:
+                prefix_abs = os.path.normpath(os.path.abspath(prefix))
                 if dataset_abs.startswith(prefix_abs) and isinstance(cfg, dict):
                     if "evaluation_method" in cfg:
                         settings["evaluation_method"] = cfg["evaluation_method"]
@@ -271,7 +286,11 @@ class TwinkleEvalRunner:
                     for mk in ("temperature", "top_p", "max_tokens", "frequency_penalty", "presence_penalty"):
                         if mk in cfg:
                             settings["model_overrides"][mk] = cfg[mk]
-            except Exception:
+            except (OSError, TypeError, ValueError) as e:
+                cfg_info = f"keys={list(cfg.keys())}" if isinstance(cfg, dict) else f"type={type(cfg).__name__}"
+                log_error(
+                    f"套用 dataset_overrides 設定失敗 (dataset={dataset_path}, override_prefix={prefix}, {cfg_info}): {e}"
+                )
                 continue
 
         return settings
