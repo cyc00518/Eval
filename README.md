@@ -288,11 +288,11 @@ evaluation:
   datasets_prompt_map:
     "datasets/mmlu/": "en" # 指定資料集使用英文提示詞
   dataset_overrides:        # 可依資料集路徑前綴覆寫評測方法
-    "datasets/AIME_2024/":
+    "datasets/AIME2024/":
       evaluation_method: "math"  # 針對特定資料集改用 math 策略
       system_prompt_enabled: false
-      samples_per_question: 8  # 預設每題生成樣本數
-      pass_k: 1               # 預設 pass@k
+      samples_per_question: 8  # 每題生成樣本數
+      pass_k: 1               # pass@k 的 k 值
       temperature: 0.6        # 可選：覆寫模型生成參數
       top_p: 0.95
       max_tokens: 16384
