@@ -271,7 +271,7 @@ evaluation:
     - "datasets/dataset1/"
     - "datasets/dataset2/"
   evaluation_method: "box" # 評測方法（支援 "pattern"、"box"、"math"）
-  system_prompt:        # 系統提示詞，僅於 box 評測方法中使用
+  system_prompt:        # 系統提示詞，僅於 box & math 評測方法中使用
     zh: |
       使用者將提供一個題目，並附上選項 A、B、C、D
       請仔細閱讀題目要求，根據題意選出最符合的選項，並將選項以以下格式輸出：
@@ -469,3 +469,4 @@ logging:
 
 在本專案的開發過程中，我們參考了 [iKala/ievals](https://github.com/iKala/ievals) 專案中的模式設計理念，該專案對我們的設計方向提供了寶貴的啟發，特此致上誠摯感謝。
 同時也感謝 [Simon Liu](https://simonliuyuwei-4ndgcf4.gamma.site/) 提供的 Colab [示範範例](https://colab.research.google.com/github/LiuYuWei/llm-colab-application/blob/main/Simon_LLM_Application_Twinkle_Eval_Tool_Google_Gemini_Model_Evaluation.ipynb)，協助我們更直觀地呈現工具的使用方式與實際應用場景。
+
