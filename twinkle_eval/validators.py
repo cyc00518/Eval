@@ -174,6 +174,12 @@ class ConfigValidator:
             pk = eval_config["pass_k"]
             if not isinstance(pk, int) or pk <= 0:
                 raise ValidationError("Evaluation 'pass_k' must be a positive integer")
+            if "samples_per_question" in eval_config:
+                spq = eval_config["samples_per_question"]
+                if isinstance(spq, int) and spq > 0 and pk > spq:
+                    raise ValidationError(
+                        f"Evaluation 'pass_k' ({pk}) cannot exceed 'samples_per_question' ({spq})"
+                    )
 
         if "datasets_prompt_map" in eval_config:
             prompt_map = eval_config["datasets_prompt_map"]
@@ -239,6 +245,18 @@ class ConfigValidator:
                         raise ValidationError(
                             "dataset_overrides.pass_k must be a positive integer"
                         )
+                    if "samples_per_question" in value:
+                        spq = value["samples_per_question"]
+                        if isinstance(spq, int) and spq > 0 and pk > spq:
+                            raise ValidationError(
+                                f"dataset_overrides.pass_k ({pk}) cannot exceed samples_per_question ({spq})"
+                            )
+                    elif "samples_per_question" in eval_config:
+                        spq = eval_config["samples_per_question"]
+                        if isinstance(spq, int) and spq > 0 and pk > spq:
+                            raise ValidationError(
+                                f"dataset_overrides.pass_k ({pk}) cannot exceed base samples_per_question ({spq})"
+                            )
                 if "repeat_runs" in value:
                     rr = value["repeat_runs"]
                     if not isinstance(rr, int) or rr <= 0:
