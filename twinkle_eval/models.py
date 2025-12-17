@@ -78,7 +78,9 @@ class OpenAIModel(LLM):
 
         method = evaluation_method or eval_config["evaluation_method"]
 
-        if method == "box" and system_prompt_enabled:
+        system_prompt_methods = {"box", "math"}
+
+        if system_prompt_enabled and method in system_prompt_methods:
             sys_prompt_cfg = eval_config.get("system_prompt", {})
             if isinstance(sys_prompt_cfg, dict):
                 sys_prompt = sys_prompt_cfg.get(prompt_lang, sys_prompt_cfg.get("zh", ""))
