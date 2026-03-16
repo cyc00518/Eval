@@ -120,8 +120,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Datasets directory
-datasets/
+# Datasets directory（example 子集除外，已 commit 進 repo 供除錯用）
+datasets/*
+!datasets/example
 
 # logs directory
 logs/
@@ -131,3 +132,6 @@ results/
 
 # real config file
 config.yaml
+
+# personal analysis notes (not for commit)
+issues_analysis.md
