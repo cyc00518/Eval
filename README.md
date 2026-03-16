@@ -1,12 +1,29 @@
 ![Twinkle Eval](assets/Twinkle_Eval.png)
 
-# Twinkle Eval：高效且準確的 AI 評測工具
+# 🌟 Twinkle Eval：高效且準確的 AI 評測工具
 
 [English](README_EN.md) | 繁體中文
 
 [![Python](https://img.shields.io/badge/python-≥3.10-blue.svg?logo=python)](https://www.python.org)
+![Project Status](https://img.shields.io/badge/status-active-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Windows%20|%20Linux-blue)
+
 ![GitHub license](https://img.shields.io/github/license/ai-twinkle/Eval)
+![GitHub issues](https://img.shields.io/github/issues/ai-twinkle/Eval)
+![GitHub stars](https://img.shields.io/github/stars/ai-twinkle/Eval?style=social)
+![GitHub forks](https://img.shields.io/github/forks/ai-twinkle/Eval?style=social)
+[![GitHub pull request](https://img.shields.io/badge/PRs-welcome-blue)](https://github.com/ai-twinkle/Eval/pulls)
+
+![GitHub last commit](https://img.shields.io/github/last-commit/ai-twinkle/Eval)
+![GitHub repo size](https://img.shields.io/github/repo-size/ai-twinkle/Eval)
+![GitHub top language](https://img.shields.io/github/languages/top/ai-twinkle/Eval)
+![GitHub languages](https://img.shields.io/github/languages/count/ai-twinkle/Eval)
+
+[![Discord](https://img.shields.io/discord/1310544431983759450?label=Twinkle%20AI&logo=discord&style=for-the-badge)](https://discord.gg/Cx737yw4ed)
+[![Hugging Face](https://img.shields.io/badge/🤗%20Visit%20Huggingface-twinkle--ai-blue?style=for-the-badge)](https://huggingface.co/twinkle-ai)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Visit%20My%20Profile-blue?logo=linkedin&style=flat)](https://linkedin.com/company/twinkle-ai)
 [![Website](https://img.shields.io/badge/Website-twinkleai.tw-blue?style=flat)](https://twinkleai.tw/)
+
 [![Open in Colab](https://img.shields.io/badge/Open%20in-Colab-orange?logo=google-colab&style=for-the-badge)](https://colab.research.google.com/github/LiuYuWei/llm-colab-application/blob/main/Simon_LLM_Application_Twinkle_Eval_Tool_Google_Gemini_Model_Evaluation.ipynb)
 
 本專案為 LLM（Large Language Model）評測框架，採用並行且隨機化測試方法，提供客觀的模型性能分析與穩定性評估，並支援多種常見評測數據集。
