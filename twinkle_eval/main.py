@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from twinkle_eval.exceptions import ConfigurationError
+from twinkle_eval.exceptions import ConfigurationError, EvaluationError
 
 from .config import load_config
 from .dataset import find_all_evaluation_files
@@ -244,13 +244,16 @@ class TwinkleEvalRunner:
 
         print()  # 進度完成後換行
 
+        # 所有檔案均評測失敗時，拋出明確錯誤（而非以 accuracy=0 偽裝成正常結果）
+        if not results:
+            raise EvaluationError(
+                f"資料集 {dataset_path} 中所有檔案評測均失敗，無法產生結果。\n"
+                f"請確認評測設定（evaluation_method、system_prompt）以及 API 端點是否正常運作。"
+            )
+
         # 計算資料集統計數據
-        dataset_avg_accuracy = (
-            np.mean([r["accuracy_mean"] for r in results]) if results else 0
-        )  # 資料集平均準確率
-        dataset_avg_std = (
-            np.mean([r["accuracy_std"] for r in results]) if results else 0
-        )  # 資料集平均標準差
+        dataset_avg_accuracy = np.mean([r["accuracy_mean"] for r in results])
+        dataset_avg_std = np.mean([r["accuracy_std"] for r in results])
 
         return {
             "results": results,
@@ -290,6 +293,9 @@ class TwinkleEvalRunner:
         for dataset_path in dataset_paths:
             try:
                 dataset_result = self._evaluate_dataset(dataset_path, evaluator)
+                if not dataset_result.get("results"):
+                    log_error(f"資料集 {dataset_path} 評測完成但無有效結果，跳過")
+                    continue
                 dataset_results[dataset_path] = dataset_result
 
                 message = (
@@ -303,6 +309,15 @@ class TwinkleEvalRunner:
             except Exception as e:
                 log_error(f"資料集 {dataset_path} 評測失敗: {e}")
                 continue
+
+        # 所有資料集均失敗時，拋出明確錯誤（而非靜默輸出空結果）
+        if not dataset_results:
+            failed_paths = ", ".join(dataset_paths)
+            raise EvaluationError(
+                f"所有資料集評測均失敗，未產生任何結果。\n"
+                f"失敗路徑: {failed_paths}\n"
+                f"請確認資料集路徑存在、格式正確，且評測設定完整。"
+            )
 
         # 準備最終結果
         current_duration = (
