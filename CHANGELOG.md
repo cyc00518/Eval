@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.1] - 2026-03-17
+
+### Changed
+- 更新 CHANGELOG.md 與專案文件，準備 PyPI 發布
+
+## [1.4.0] - 2026-03-16
+
+### Added
+- 基於 Logit 的評測策略（`evaluation_method: logit`，closes #7）：透過 `/v1/completions` 搭配 `echo=True` 計算 log P(choice | context) 為每個選項評分；相容 vLLM 及 lm-evaluation-harness MMLU 模板格式；支援任意選項數量（如 MMLU-Pro 的 A–J）
+- `OpenAIModel.score_continuation()`：透過 `ThreadPoolExecutor` 並行計算每個選項的對數概率；`logprob_scores` 字典會寫入 JSONL 輸出供除錯使用
+- 在 `datasets/example/` 下新增範例評測子集，可快速驗證設定而無需下載完整資料集（closes #24）：gsm8k（20 題）、AIME 2025（30 題）、TMMLU+（20 題）、MMLU（20 題）、MMLU-Pro（20 題）
+- `scripts/create_example_datasets.py`：維護者用於從 HuggingFace 重新生成範例子集的腳本
 
 ## [1.3.0] - 2026-03-16
 
