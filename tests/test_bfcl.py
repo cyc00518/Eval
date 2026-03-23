@@ -146,6 +146,28 @@ class TestParseBfclPythonOutput:
         result = parse_bfcl_python_output("this is not a function call")
         assert result is None
 
+    def test_reasoning_model_output_with_thinking_prefix(self):
+        """推理模型把思考過程放在答案前面，答案在最後一行。"""
+        output = (
+            "Okay, the user is asking for the capital of Brazil. "
+            "Let me check the available functions... "
+            "The correct function is country_info.capital.\n\n\n"
+            '[country_info.capital(country="Brazil")]'
+        )
+        result = parse_bfcl_python_output(output)
+        assert result is not None
+        assert result[0] == {"country_info.capital": {"country": "Brazil"}}
+
+    def test_reasoning_model_multiple_calls(self):
+        """推理模型思考後輸出多個 function call。"""
+        output = (
+            "I need to call two functions here. First func1, then func2.\n\n"
+            "[func1(a=1), func2(b='hello')]"
+        )
+        result = parse_bfcl_python_output(output)
+        assert result is not None
+        assert len(result) == 2
+
     def test_bool_args(self):
         result = parse_bfcl_python_output("[func(flag=True)]")
         assert result is not None

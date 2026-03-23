@@ -2,6 +2,7 @@
 
 import ast
 import json
+import re
 from typing import Any, Dict, List, Optional
 
 from twinkle_eval.core.abc import Extractor
@@ -91,34 +92,58 @@ def _resolve_ast_call(call_node: ast.Call) -> Dict:
     return {func_name: args}
 
 
-def parse_bfcl_python_output(text: str) -> Optional[List[Dict]]:
-    """解析 BFCL prompting 模式的 Python 格式輸出。
-
-    期望格式：[func_name1(param1=val1, param2=val2), func_name2(param=val)]
-    對齊 BFCL 官方 default_decode_ast_prompting() 的邏輯。
-    """
+def _try_parse_block(text: str) -> Optional[List[Dict]]:
+    """嘗試將單一文字區塊解析為 BFCL Python call 列表。"""
     text = text.strip().strip("`\n ")
     if not text.startswith("["):
         text = "[" + text
     if not text.endswith("]"):
         text = text + "]"
-
     try:
         cleaned = text.strip().strip("'")
         parsed = ast.parse(cleaned, mode="eval")
         results = []
         body = parsed.body
-
         if isinstance(body, ast.Call):
             results.append(_resolve_ast_call(body))
         elif isinstance(body, ast.List):
             for elem in body.elts:
                 if isinstance(elem, ast.Call):
                     results.append(_resolve_ast_call(elem))
-
         return results if results else None
     except (SyntaxError, AttributeError, ValueError, TypeError):
         return None
+
+
+def parse_bfcl_python_output(text: str) -> Optional[List[Dict]]:
+    """解析 BFCL prompting 模式的 Python 格式輸出。
+
+    期望格式：[func_name1(param1=val1, param2=val2), func_name2(param=val)]
+    對齊 BFCL 官方 default_decode_ast_prompting() 的邏輯。
+
+    推理模型（reasoning model）會在 reasoning_content 中把思考過程放在答案之前，
+    例如：「Let me check... [func_name(param=val)]」
+    此時直接解析全文會失敗，需要從後往前找最後一個 [identifier( 區塊。
+    """
+    text = text.strip()
+    if not text:
+        return None
+
+    # 先嘗試直接解析（適用於乾淨輸出）
+    result = _try_parse_block(text)
+    if result is not None:
+        return result
+
+    # 找最後一個 [identifier( 區塊（適用於推理模型：思考 + 答案混在一起）
+    matches = list(re.finditer(r"\[[A-Za-z_]", text))
+    if matches:
+        last_start = matches[-1].start()
+        candidate = text[last_start:]
+        result = _try_parse_block(candidate)
+        if result is not None:
+            return result
+
+    return None
 
 
 class BFCLPromptExtractor(Extractor):
