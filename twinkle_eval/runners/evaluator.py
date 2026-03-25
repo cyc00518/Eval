@@ -214,9 +214,17 @@ class Evaluator:
 
                 for idx, q in enumerate(tqdm(dataset, desc="處理題庫中")):
                     try:
-                        instruction_id_list = json.loads(q.get("instruction_id_list", "[]"))
-                        kwargs_list = json.loads(q.get("kwargs", "[]"))
-                        question_text = q.get("question", "")
+                        # 支援 IFEval（JSON string）與 IFBench（原生 list/dict）兩種格式
+                        raw_ids = q.get("instruction_id_list", "[]")
+                        raw_kwargs = q.get("kwargs", "[]")
+                        instruction_id_list = (
+                            json.loads(raw_ids) if isinstance(raw_ids, str) else raw_ids
+                        )
+                        kwargs_list = (
+                            json.loads(raw_kwargs) if isinstance(raw_kwargs, str) else raw_kwargs
+                        )
+                        # IFEval uses "question", IFBench uses "prompt"
+                        question_text = q.get("question", "") or q.get("prompt", "")
                     except (json.JSONDecodeError, AttributeError) as e:
                         log_error(f"問題 {idx + 1} 資料格式錯誤: {e}")
                         continue
@@ -259,7 +267,15 @@ class Evaluator:
 
                     # 計算四個指標
                     if hasattr(self.scorer, "score_full"):
-                        ifeval_result = self.scorer.score_full(response, inst_ids, kwargs_list)
+                        # IFBench scorer 需要 prompt 參數（某些 checker 如 RepeatChangeChecker）
+                        import inspect
+                        sig = inspect.signature(self.scorer.score_full)
+                        if "prompt" in sig.parameters:
+                            ifeval_result = self.scorer.score_full(
+                                response, inst_ids, kwargs_list, prompt=question_text
+                            )
+                        else:
+                            ifeval_result = self.scorer.score_full(response, inst_ids, kwargs_list)
                     else:
                         ifeval_result = {
                             "prompt_strict": False, "prompt_loose": False,

@@ -332,7 +332,7 @@ EvaluationStrategyFactory.register_strategy("my_strategy", MyStrategy)
 
 3. **不得跳過**：沒有對應 Milestone 和 Issues 的 benchmark 實作，不得開 PR
 
-**標準 Issue 結構（一個 benchmark 共需開 5 個 Issues）：**
+**標準 Issue 結構（一個 benchmark 共需開 6 個 Issues）：**
 
 | Issue | 標題範例 | 對應步驟 |
 |-------|---------|--------|
@@ -341,12 +341,13 @@ EvaluationStrategyFactory.register_strategy("my_strategy", MyStrategy)
 | 3 | `feat(ifeval): score comparison vs reference framework` | 6.3 分數對比 |
 | 4 | `feat(ifeval): speed benchmark vs reference framework` | 6.4 速度對比 |
 | 5 | `feat(ifeval): write docs/evals/{name}.md` | 6.5 文件 |
+| 6 | `feat(ifeval): write tests/test_{name}.py` | 6.6 測試 |
 
 ### 6.0.1 合入（Merge）的前提條件
 
 **一個 benchmark 的 PR 必須等到以下全部完成才可合入 main：**
 
-- [ ] 所有 5 個 Issues 已 close（或在同一 PR 中解決）
+- [ ] 所有 6 個 Issues 已 close（或在同一 PR 中解決）
 - [ ] `docs/evals/{benchmark_name}.md` 已完整填寫（包含分數對比與速度對比）
 - [ ] 分數誤差符合第 6.3 節的容差標準
 - [ ] 前一個優先級更高的 benchmark 若尚未完成，此 benchmark 不得合入
@@ -411,6 +412,22 @@ EvaluationStrategyFactory.register_strategy("my_strategy", MyStrategy)
 - **速度對比**：單機測速結果
 
 文件模板位於 `docs/evals/TEMPLATE.md`。
+
+### 6.6 建立測試檔案（tests/test_{benchmark_name}.py）
+
+每個 benchmark **必須**在 `tests/` 下建立對應的 pytest 測試檔案，至少涵蓋以下測試類別：
+
+- **Extractor**：`get_name()` 回傳正確名稱、`extract()` pass-through 行為、`uses_ifeval` 旗標（若適用）
+- **Scorer**：`get_name()` 回傳正確名稱、`normalize()` 行為、`score()` 的正確/錯誤/空值/無效 ground truth 場景、`score_full()` 回傳結構驗證
+- **Checker / 評分邏輯**：選取 3–5 種具代表性的 instruction/rule type，各寫一個 pass 和一個 fail 的 case
+- **Checker Registry**（若有）：驗證所有指令 ID 都已註冊、數量正確、所有 category 都存在
+- **PRESETS 註冊**：確認 `PRESETS["{benchmark_name}"]` 存在且對應正確的 Extractor/Scorer class
+- **Example Dataset**：檔案存在、格式正確（必要欄位齊全、筆數符合預期、涵蓋所有子類別）
+- **Edge cases**：空回應、None 值、kwargs 中包含 null 值的過濾（若適用）
+
+命名慣例：`tests/test_{benchmark_name}.py`，class 名稱使用 `TestXxx` 格式。
+
+**此測試檔案必須能在不呼叫任何外部 API 的情況下通過**（pure unit test）。提交 PR 前必須執行 `python3 -m pytest tests/test_{benchmark_name}.py -v` 並確認全部通過。
 
 ---
 
@@ -638,6 +655,7 @@ results/
 - [ ] 文件中已記錄與參考框架的**分數對比**（含模型名稱、資料集規模）
   - 分數誤差符合第 6.3 節容差標準（完整 benchmark ±2%，中型 ±3%，小型 ±5%）
 - [ ] 文件中已記錄**速度對比**（本專案單機 vs. 參考框架）
+- [ ] `tests/test_{name}.py` 已建立並通過（第 6.6 節），涵蓋 Extractor、Scorer、Checker、Registry、Example Dataset
 
 ### 衝突確認
 確認本 PR 的修改是否與以下開放中 PR 有衝突：
