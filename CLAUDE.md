@@ -609,6 +609,29 @@ results/
 
 每次修改 `pyproject.toml` 的 `version` 欄位，**必須同步修改 `twinkle_eval/__init__.py` 的 `__version__`**（目前兩者不一致，待修正）。
 
+### Release 與 Tag 規範
+
+**當一個 GitHub Milestone 的所有 Issue 都已 close 時，必須：**
+
+1. Close 該 Milestone
+2. Bump 版本號（`pyproject.toml` + `twinkle_eval/__init__.py`）
+3. 建立 Git tag 並發佈 GitHub Release（`gh release create`）
+
+**版本號遵循 [Semantic Versioning](https://semver.org/)（MAJOR.MINOR.PATCH）：**
+
+| 變更類型 | 版本位 | 判斷標準 | 範例 |
+|---------|--------|---------|------|
+| **MAJOR** | `X.0.0` | Breaking change：config 格式不相容、CLI 行為改變、輸出結構變更、ABC 介面修改 | 1.0.0 → 2.0.0（模組化架構重構） |
+| **MINOR** | `x.Y.0` | 新功能：新增 benchmark、新增 evaluation method、新增 exporter、新增 optional dependency group | 2.0.0 → 2.1.0（新增 IFEval + IFBench） |
+| **PATCH** | `x.y.Z` | Bug fix、文件修正、效能優化、不影響使用者介面的內部重構 | 2.1.0 → 2.1.1（修正 scorer 邊界條件） |
+
+**多個 Milestone 同時完成時**（例如同一個 PR 關閉了多個 Milestone），只需 bump 一次版本、發佈一個 Release，Release notes 中列出所有完成的 Milestone。
+
+**Release 標題格式**：`v{VERSION} — {一句話摘要}`
+- 範例：`v2.1.0 — IFEval & IFBench Instruction-Following Evaluation`
+
+**Tag 命名**：`v{VERSION}`（例如 `v2.1.0`），必須指向 main branch 上 version bump commit。
+
 ---
 
 ## 12. CLI 設計規範
