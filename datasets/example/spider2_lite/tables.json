@@ -1,0 +1,17 @@
+[
+  {
+    "db_id": "book_store",
+    "table_names_original": ["author", "publisher", "book", "book_author", "customer", "cust_order", "order_line", "order_status"],
+    "column_names_original": [
+      [-1, "*"],
+      [0, "author_id"], [0, "author_name"],
+      [1, "publisher_id"], [1, "publisher_name"],
+      [2, "book_id"], [2, "title"], [2, "isbn13"], [2, "num_pages"], [2, "publication_date"], [2, "publisher_id"], [2, "language_id"],
+      [3, "book_id"], [3, "author_id"],
+      [4, "customer_id"], [4, "first_name"], [4, "last_name"], [4, "email"],
+      [5, "order_id"], [5, "order_date"], [5, "customer_id"],
+      [6, "line_id"], [6, "order_id"], [6, "book_id"], [6, "price"],
+      [7, "status_id"], [7, "order_id"], [7, "status_value"], [7, "status_date"]
+    ]
+  }
+]

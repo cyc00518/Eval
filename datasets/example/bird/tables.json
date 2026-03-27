@@ -1,0 +1,29 @@
+[
+  {
+    "db_id": "california_schools",
+    "table_names_original": ["schools", "satscores", "frpm"],
+    "column_names_original": [
+      [-1, "*"], [0, "CDSCode"], [0, "StatusType"], [0, "County"], [0, "District"], [0, "School"],
+      [0, "Magnet"], [0, "Charter"],
+      [1, "cds"], [1, "sname"], [1, "dname"], [1, "cname"], [1, "enroll12"], [1, "NumTstTakr"],
+      [1, "AvgScrRead"], [1, "AvgScrMath"], [1, "AvgScrWrite"], [1, "NumGE1500"], [1, "PctGE1500"],
+      [2, "CDSCode"], [2, "School Name"], [2, "Enrollment (K-12)"], [2, "Free Meal Count (K-12)"],
+      [2, "FRPM Count (K-12)"]
+    ]
+  },
+  {
+    "db_id": "financial",
+    "table_names_original": ["account", "client", "disp", "order", "trans", "loan", "card", "district"],
+    "column_names_original": [
+      [-1, "*"],
+      [0, "account_id"], [0, "district_id"], [0, "frequency"], [0, "date"],
+      [1, "client_id"], [1, "gender"], [1, "birth_date"], [1, "district_id"],
+      [2, "disp_id"], [2, "client_id"], [2, "account_id"], [2, "type"],
+      [3, "order_id"], [3, "account_id"], [3, "amount"], [3, "k_symbol"],
+      [4, "trans_id"], [4, "account_id"], [4, "date"], [4, "type"], [4, "amount"], [4, "balance"],
+      [5, "loan_id"], [5, "account_id"], [5, "amount"], [5, "duration"], [5, "status"],
+      [6, "card_id"], [6, "disp_id"], [6, "type"], [6, "issued"],
+      [7, "district_id"], [7, "A2"], [7, "A3"], [7, "A4"]
+    ]
+  }
+]

@@ -22,6 +22,8 @@ from .extractors.niah import NIAHExtractor
 from .scorers.niah import NIAHScorer
 from .extractors.ragas import RAGASExtractor
 from .scorers.ragas import RAGASScorer
+from .extractors.text2sql import Text2SQLExtractor
+from .scorers.text2sql import Text2SQLScorer
 
 # Preset：evaluation_method 字串 → (Extractor 類別, Scorer 類別)
 PRESETS: Dict[str, Tuple[Type[Extractor], Type[Scorer]]] = {
@@ -36,6 +38,7 @@ PRESETS: Dict[str, Tuple[Type[Extractor], Type[Scorer]]] = {
     "ifbench": (IFBenchExtractor, IFBenchScorer),
     "niah": (NIAHExtractor, NIAHScorer),
     "ragas": (RAGASExtractor, RAGASScorer),
+    "text2sql": (Text2SQLExtractor, Text2SQLScorer),
 }
 
 
@@ -110,4 +113,6 @@ __all__ = [
     "NIAHScorer",
     "RAGASExtractor",
     "RAGASScorer",
+    "Text2SQLExtractor",
+    "Text2SQLScorer",
 ]

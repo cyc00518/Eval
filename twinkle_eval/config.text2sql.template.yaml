@@ -1,0 +1,46 @@
+llm_api:
+  base_url: "http://your-openai-compatible-server/v1"  # API 伺服器網址
+  api_key: "your-api-key"                              # API 金鑰
+  disable_ssl_verify: false                            # 是否停用 SSL 驗證
+  api_rate_limit: -1                                   # 每秒請求限制（-1 為不限制）
+  max_retries: 3                                       # API 呼叫失敗時的重試次數
+  timeout: 60                                          # 單次請求逾時（秒）
+
+model:
+  name: "model-name"      # 模型名稱
+  temperature: 0.0        # 溫度參數（text-to-sql 建議 0.0）
+  top_p: 0.9
+  max_tokens: 1024        # SQL 查詢通常不會太長
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  extra_body:
+
+evaluation:
+  dataset_paths:          # 資料集目錄路徑（必填，支援多個）
+    - "datasets/example/spider/"
+    # - "datasets/example/bird/"
+    # - "datasets/example/spider2_lite/"
+
+  # Text-to-SQL 評測：
+  # 支援三個主流 benchmark：Spider 1.0、BIRD、Spider 2.0-lite
+  # - 資料集的 question 欄位為預組裝的 prompt（含 schema + 問題）
+  # - answer 欄位為 JSON 格式：{"sql": "SELECT ...", "db_id": "database_name"}
+  # - 評分模式：
+  #     exec（預設）：Execution Accuracy — 在 SQLite 上執行 SQL 並比對結果集
+  #     em：Exact Match — 正規化 SQL 字串後比對
+  evaluation_method: "text2sql"
+
+  # Text-to-SQL 策略設定
+  strategy_config:
+    # 評分模式：exec（Execution Accuracy，預設）或 em（Exact Match）
+    text2sql_scoring_mode: "exec"
+
+    # SQLite 資料庫根目錄（exec 模式必填）
+    # 資料庫路徑格式：{db_base_path}/{db_id}/{db_id}.sqlite
+    text2sql_db_base_path: "datasets/example/spider/databases"
+
+    # SQL 執行逾時秒數（預設 30）
+    # text2sql_timeout: 30
+
+logging:
+  level: "INFO"           # DEBUG / INFO / WARNING / ERROR
