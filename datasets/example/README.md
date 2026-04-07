@@ -60,6 +60,12 @@
 | `bird/` | [BIRD](https://bird-bench.github.io/) | 10 | `text2sql` | 含外部知識的 Text-to-SQL（california_schools、financial 兩個 SQLite DB） |
 | `spider2_lite/` | [Spider 2.0-lite](https://spider2-sql.github.io/) | 10 | `text2sql` | 企業級 Text-to-SQL 的 SQLite 子集（book_store DB）。僅支援 lite 版（85 題 SQLite-only），完整版需 BigQuery/Snowflake 雲端帳號 |
 
+### ASR（語音辨識）
+
+| 目錄 | 來源 | 題數 | 評測方法 | 說明 |
+|------|------|------|----------|------|
+| `asr/` | [OKHand/Clean_Common_Voice_Speech_24.0-TW](https://huggingface.co/datasets/OKHand/Clean_Common_Voice_Speech_24.0-TW) | 10 | `asr` | 繁體中文語音辨識（CER），含 WAV 音檔 + reference transcription |
+
 ### Regex Match（BBH 等混合格式）
 
 | 目錄 | 來源 | 題數 | 評測方法 | 說明 |
@@ -162,6 +168,24 @@ evaluation:
     en: "Follow each question's instructions carefully. Think step by step. You MUST end your response with exactly this format: 'the answer is {your answer}' where {your answer} is the option like (A), (B), etc., or the exact value like Yes, No, True, False, valid, invalid, or the computed result."
 ```
 
+### ASR（asr 模式）
+
+需先安裝：`pip install twinkle-eval[asr]`
+
+```yaml
+llm_api:
+  type: "whisper"                    # 或 "openai"（多模態模型）
+  base_url: "http://localhost:8000/v1"
+  api_key: "your-api-key"
+
+evaluation:
+  dataset_paths:
+    - "datasets/librispeech/"
+  evaluation_method: asr
+  strategy_config:
+    asr_language: "en"
+```
+
 ### 混合模式（dataset_overrides）
 
 ```yaml
@@ -215,6 +239,11 @@ evaluation:
 **Text-to-SQL（spider、bird、spider2_lite）**
 ```json
 {"question": "<schema + question prompt>", "answer": "{\"sql\": \"SELECT ...\", \"db_id\": \"...\"}",  "db_id": "..."}
+```
+
+**ASR（librispeech、aishell1）**
+```json
+{"audio_path": "path/to/audio.wav", "answer": "reference transcription text"}
 ```
 
 **Regex Match / BBH（bbh）**
