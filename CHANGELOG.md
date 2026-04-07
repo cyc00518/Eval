@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-04-07
+
+### Added
+- **Benchmark Download Registry**（Milestone #20）：`twinkle_eval/benchmarks.py` 集中管理 19 個評測資料集，`--download-dataset` 支援短名稱（`mmlu`、`gsm8k`）、`all`（全部下載）、`list`（列出可用）、向下相容 HuggingFace ID；支援 GitHub-based 下載（BIRD、Spider 2.0-lite、LongBench）；gated dataset（GPQA）互動式 HF token 提示與批次摘要
+- **CLI Enhancement**（Milestone #19）：
+  - `--init` 重構：支援 `--init`（列出範本）、`--init <name>`（單一）、`--init all`（全部），自動掃描 `templates/` 目錄
+  - `--dry-run`：載入設定檔與資料集，顯示評測計畫但不呼叫 API
+  - `--validate`：僅驗證設定檔格式與資料集路徑
+  - `--resume TIMESTAMP`：從中斷點繼續評測，跳過已完成的檔案
+- **Regex Match 評測方法**（Milestone #18）：`RegexMatchExtractor` + `StringMatchScorer`，BBH 為首個 use case，含 example dataset、docs、66 tests
+
+### Changed
+- 設定檔範本從 `twinkle_eval/config.*.template.yaml` 搬入 `twinkle_eval/templates/*.yaml`，刪除舊 `config.template.yaml`
+- CLAUDE.md 新增 CHANGELOG 規則：每次 bump 版本號必須同步更新 CHANGELOG
+
 ## [1.4.1] - 2026-03-17
 
 ### Changed
